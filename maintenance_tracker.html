@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maintenance Tracker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'Segoe UI', sans-serif; background: #1a3a5c; min-height: 100vh; overflow-x: hidden; }
+
+  /* SCREENS */
+  .screen { display: none; min-height: 100vh; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  /* ── SCREEN 1: NAME PICKER ── */
+  #homeScreen { background: #1a3a5c; }
+  .home-header { padding: 36px 24px 20px; text-align: center; }
+  .app-title { color: #fff; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
+  .app-sub { color: #7fb3d3; font-size: 15px; margin-top: 6px; }
+  .name-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 0 20px 20px; flex: 1; align-content: start; }
+  .name-btn {
+    background: #fff; color: #1a3a5c; border: none; border-radius: 16px;
+    padding: 22px 12px; font-size: 17px; font-weight: 700; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18); text-align: center;
+    transition: transform .12s, background .12s;
+    min-height: 80px; display: flex; align-items: center; justify-content: center;
+  }
+  .name-btn:active { transform: scale(0.95); background: #e8f0fe; }
+  .no-staff { color: #7fb3d3; text-align: center; padding: 40px 20px; font-size: 15px; grid-column: span 2; }
+  .home-footer { padding: 16px 20px 30px; text-align: center; }
+  .admin-link { color: #4a8ab5; font-size: 13px; cursor: pointer; text-decoration: underline; padding: 8px; display: inline-block; }
+
+  /* ── SCREEN 2: ACTION SCREEN ── */
+  #actionScreen { background: #f0f4f8; }
+  .action-header { background: #1a3a5c; padding: 20px 20px 24px; text-align: center; position: relative; }
+  .back-btn { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.15); border: none; color: #fff; font-size: 22px; width: 42px; height: 42px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .worker-name { color: #fff; font-size: 24px; font-weight: 800; }
+  .worker-sub { color: #7fb3d3; font-size: 13px; margin-top: 4px; }
+  .action-body { flex: 1; display: flex; flex-direction: column; padding: 24px 20px; gap: 16px; }
+  .action-btn {
+    border: none; border-radius: 18px; padding: 26px 20px;
+    font-size: 20px; font-weight: 800; cursor: pointer; text-align: left;
+    display: flex; align-items: center; gap: 16px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+    transition: transform .12s, opacity .12s;
+  }
+  .action-btn:active { transform: scale(0.97); opacity: 0.85; }
+  .action-btn .icon { font-size: 32px; width: 48px; text-align: center; }
+  .action-btn .label { flex: 1; }
+  .action-btn .label small { display: block; font-size: 13px; font-weight: 500; opacity: 0.7; margin-top: 2px; }
+  .btn-in { background: #22c55e; color: #fff; }
+  .btn-out { background: #ef4444; color: #fff; }
+  .btn-off { background: #f59e0b; color: #fff; }
+  .btn-tasks { background: #3b82f6; color: #fff; }
+
+  /* ── OVERLAYS ── */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 100; align-items: flex-end; justify-content: center; padding: 0; }
+  .overlay.active { display: flex; }
+  .sheet { background: #fff; border-radius: 24px 24px 0 0; padding: 20px 20px 36px; width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto; animation: slideUp .25s ease; }
+  @keyframes slideUp { from { transform: translateY(60px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .sheet-handle { width: 40px; height: 4px; background: #ddd; border-radius: 2px; margin: 0 auto 20px; }
+  .sheet h2 { font-size: 20px; color: #1a3a5c; margin-bottom: 16px; font-weight: 800; }
+  .task-item { background: #f8fafc; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; border-left: 4px solid #3b82f6; }
+  .task-time { font-size: 12px; color: #888; margin-bottom: 3px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+  .task-name { font-size: 16px; font-weight: 700; color: #1a3a5c; }
+  .empty-msg { text-align: center; color: #aaa; font-size: 15px; padding: 30px 0; }
+
+  /* TIME OFF FORM */
+  .form-group { margin-bottom: 18px; }
+  .form-group label { font-size: 13px; color: #555; font-weight: 700; display: block; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .4px; }
+  input[type="date"], textarea, input[type="text"], input[type="password"] {
+    width: 100%; padding: 14px; border: 2px solid #e0e0e0; border-radius: 12px;
+    font-size: 16px; font-family: inherit; background: #f8fafc;
+  }
+  input:focus, textarea:focus { outline: none; border-color: #1a3a5c; background: #fff; }
+  textarea { resize: vertical; min-height: 90px; }
+  .btn-submit { width: 100%; padding: 16px; background: #1a3a5c; color: #fff; border: none; border-radius: 14px; font-size: 17px; font-weight: 800; cursor: pointer; margin-top: 4px; }
+  .btn-submit:active { background: #15304e; }
+
+  /* ── ADMIN ── */
+  #adminScreen { background: #f0f4f8; }
+  .admin-header { background: #1a3a5c; color: #fff; padding: 18px 16px; display: flex; align-items: center; justify-content: space-between; }
+  .admin-header h1 { font-size: 19px; font-weight: 800; }
+  .admin-tabs { display: flex; background: #fff; border-bottom: 2px solid #e8edf2; overflow-x: auto; }
+  .tab { flex: 1; min-width: 70px; padding: 14px 6px; text-align: center; font-size: 12px; font-weight: 700; color: #888; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; text-transform: uppercase; letter-spacing: .4px; }
+  .tab.active { color: #1a3a5c; border-bottom-color: #1a3a5c; }
+  .admin-body { flex: 1; overflow-y: auto; padding: 16px; }
+  .section-title { font-size: 14px; font-weight: 800; color: #1a3a5c; margin: 12px 0 10px; text-transform: uppercase; letter-spacing: .5px; }
+  .card { background: #fff; border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .card-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .card-name { font-weight: 700; color: #1a3a5c; font-size: 15px; }
+  .card-sub { font-size: 12px; color: #888; margin-top: 3px; }
+  .btn-sm { padding: 8px 16px; border: none; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .btn-danger { background: #fee2e2; color: #dc2626; }
+  .btn-success { background: #dcfce7; color: #16a34a; }
+  .btn-neutral { background: #f1f5f9; color: #64748b; }
+  .add-form { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .add-form .row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .add-form input, .add-form select { flex: 1; min-width: 110px; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 14px; background: #f8fafc; }
+  .add-form .btn-submit { width: auto; padding: 12px 20px; font-size: 14px; margin-top: 0; border-radius: 10px; }
+  .status-badge { font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 20px; display: inline-block; margin-top: 5px; text-transform: uppercase; letter-spacing: .4px; }
+  .badge-pending { background: #fef3c7; color: #d97706; }
+  .badge-approved { background: #dcfce7; color: #16a34a; }
+  .badge-denied { background: #fee2e2; color: #dc2626; }
+  .log-item { font-size: 13px; color: #444; padding: 10px 0; border-bottom: 1px solid #f0f0f0; display: flex; gap: 8px; align-items: center; }
+  .log-item:last-child { border-bottom: none; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #1a3a5c; color: #fff; padding: 12px 26px; border-radius: 30px; font-size: 14px; font-weight: 700; z-index: 999; opacity: 0; transition: opacity .3s; pointer-events: none; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- ── SCREEN 1: NAME PICKER ── -->
+<div id="homeScreen" class="screen active">
+  <div class="home-header">
+    <div class="app-title">🔧 Maintenance</div>
+    <div class="app-sub">Tap your name to get started<br><span style="font-size:13px;opacity:0.8;">Toca tu nombre para comenzar</span></div>
+  </div>
+  <div class="name-grid" id="nameGrid">
+    <div class="no-staff">No staff added yet.<br>Visit the Admin Panel to get started.</div>
+  </div>
+  <div class="home-footer">
+    <span class="admin-link" onclick="openAdminLogin()">⚙️ Admin Panel</span>
+  </div>
+</div>
+
+<!-- ── SCREEN 2: ACTION SCREEN ── -->
+<div id="actionScreen" class="screen">
+  <div class="action-header">
+    <button class="back-btn" onclick="goHome()">←</button>
+    <div class="worker-name" id="actionName"></div>
+    <div class="worker-sub" id="actionSub"></div>
+  </div>
+  <div class="action-body">
+    <button class="action-btn btn-in" onclick="clockIn()">
+      <span class="icon">⏱</span>
+      <span class="label">Clock In <span style="font-weight:500;opacity:0.85;">/ Registrar Entrada</span><small>Record your start time · Registra tu hora de entrada</small></span>
+    </button>
+    <button class="action-btn btn-out" onclick="clockOut()">
+      <span class="icon">🚪</span>
+      <span class="label">Clock Out <span style="font-weight:500;opacity:0.85;">/ Registrar Salida</span><small>Record your end time · Registra tu hora de salida</small></span>
+    </button>
+    <button class="action-btn btn-off" onclick="openTimeOff()">
+      <span class="icon">📅</span>
+      <span class="label">Request Time Off <span style="font-weight:500;opacity:0.85;">/ Solicitar Día Libre</span><small>Submit a time-off request · Envía una solicitud de ausencia</small></span>
+    </button>
+    <button class="action-btn btn-tasks" onclick="viewTasks()">
+      <span class="icon">📋</span>
+      <span class="label">Tasks for Today <span style="font-weight:500;opacity:0.85;">/ Tareas de Hoy</span><small>View your full schedule · Ver tu horario completo</small></span>
+    </button>
+  </div>
+</div>
+
+<!-- ── TASKS SHEET ── -->
+<div class="overlay" id="tasksOverlay" onclick="closeOnBg(event,'tasksOverlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2 id="tasksTitle">Your Tasks Today</h2>
+    <div id="tasksList"></div>
+  </div>
+</div>
+
+<!-- ── TIME OFF SHEET ── -->
+<div class="overlay" id="timeOffOverlay" onclick="closeOnBg(event,'timeOffOverlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2>Request Time Off / <span style="font-weight:500;color:#555;">Solicitar Día Libre</span></h2>
+    <div class="form-group">
+      <label>Date / Fecha</label>
+      <input type="date" id="timeOffDate">
+    </div>
+    <div class="form-group">
+      <label>Note (optional) / Nota (opcional)</label>
+      <textarea id="timeOffNote" placeholder="Any details... / Cualquier detalle..."></textarea>
+    </div>
+    <button class="btn-submit" onclick="submitTimeOff()">Submit Request / Enviar Solicitud</button>
+  </div>
+</div>
+
+<!-- ── ADMIN LOGIN SHEET ── -->
+<div class="overlay" id="adminLoginOverlay" onclick="closeOnBg(event,'adminLoginOverlay')">
+  <div class="sheet" style="max-width:420px;margin:0 auto;">
+    <div class="sheet-handle"></div>
+    <h2>Admin Login</h2>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="adminPwInput" placeholder="Enter password" onkeydown="if(event.key==='Enter')adminLogin()">
+    </div>
+    <button class="btn-submit" onclick="adminLogin()">Login</button>
+  </div>
+</div>
+
+<!-- ── ADMIN SCREEN ── -->
+<div id="adminScreen" class="screen">
+  <div class="admin-header">
+    <button class="btn-sm btn-neutral" onclick="adminLogout()">← Back</button>
+    <h1>⚙️ Admin Panel</h1>
+    <div style="width:60px;"></div>
+  </div>
+  <div class="admin-tabs">
+    <div class="tab active" onclick="showTab('tabStaff',this)">Staff</div>
+    <div class="tab" onclick="showTab('tabTasks',this)">Tasks</div>
+    <div class="tab" onclick="showTab('tabTimeOff',this)">Time Off</div>
+    <div class="tab" onclick="showTab('tabLog',this)">Log</div>
+    <div class="tab" onclick="showTab('tabSettings',this)">Settings</div>
+  </div>
+  <div class="admin-body">
+
+    <!-- STAFF -->
+    <div id="tabStaff">
+      <div class="section-title">Add Staff Member</div>
+      <div class="add-form">
+        <div class="row">
+          <input type="text" id="newStaffName" placeholder="Full name">
+          <button class="btn-submit" onclick="addStaff()">Add</button>
+        </div>
+      </div>
+      <div class="section-title">Current Staff</div>
+      <div id="staffList"></div>
+    </div>
+
+    <!-- TASKS -->
+    <div id="tabTasks" style="display:none;">
+      <div class="section-title">Add Daily Task</div>
+      <div class="add-form">
+        <div class="row">
+          <input type="text" id="newTaskName" placeholder="Task description" style="flex:2;">
+          <input type="time" id="newTaskTime">
+        </div>
+        <div class="row">
+          <select id="newTaskAssignee" style="flex:1;"></select>
+          <button class="btn-submit" onclick="addTask()">Add</button>
+        </div>
+      </div>
+      <div class="section-title">Daily Tasks</div>
+      <div id="adminTasksList"></div>
+    </div>
+
+    <!-- TIME OFF -->
+    <div id="tabTimeOff" style="display:none;">
+      <div class="section-title">Time Off Requests</div>
+      <div id="timeOffList"></div>
+    </div>
+
+    <!-- LOG -->
+    <div id="tabLog" style="display:none;">
+      <div class="section-title">Clock-In / Out Log</div>
+      <div id="clockLog"></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="tabSettings" style="display:none;">
+      <div class="section-title">Change Admin Password</div>
+      <div class="add-form">
+        <div class="form-group">
+          <label>Current Password</label>
+          <input type="password" id="curPw" placeholder="Current password">
+        </div>
+        <div class="form-group">
+          <label>New Password</label>
+          <input type="password" id="newPw" placeholder="New password">
+        </div>
+        <div class="form-group">
+          <label>Confirm New Password</label>
+          <input type="password" id="confirmPw" placeholder="Confirm new password">
+        </div>
+        <button class="btn-submit" onclick="changePassword()">Update Password</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const TODAY = new Date().toISOString().split('T')[0];
+let currentWorker = null;
+
+let state = {
+  staff: [],
+  tasks: [],
+  timeOff: [],
+  clockLog: [],
+  todayAssignments: {},
+  adminPassword: 'admin1234'
+};
+
+// ── STORAGE ──────────────────────────────────────────────────────────────────
+async function saveState() {
+  try { await window.storage.set('maint_v2', JSON.stringify(state)); } catch(e) {}
+}
+async function loadState() {
+  try {
+    const r = await window.storage.get('maint_v2');
+    if (r) state = { ...state, ...JSON.parse(r.value) };
+  } catch(e) {}
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+(async () => {
+  await loadState();
+  renderNameGrid();
+  document.getElementById('timeOffDate').value = TODAY;
+})();
+
+// ── SCREEN NAV ───────────────────────────────────────────────────────────────
+function getClockStatus(staffId) {
+  // Get today's clock events for this worker, in order
+  const todayEvents = state.clockLog
+    .filter(l => l.staffId === staffId && l.timestamp.startsWith(TODAY))
+    .sort((a,b) => a.timestamp.localeCompare(b.timestamp));
+  // Last event determines status
+  if (!todayEvents.length) return 'out'; // never clocked in today
+  return todayEvents[todayEvents.length - 1].type === 'in' ? 'in' : 'out';
+}
+
+function updateActionButtons() {
+  if (!currentWorker) return;
+  const status = getClockStatus(currentWorker.id);
+  const btnIn  = document.querySelector('.btn-in');
+  const btnOut = document.querySelector('.btn-out');
+  if (status === 'in') {
+    // Currently clocked in — gray out Clock In
+    btnIn.style.opacity = '0.35';
+    btnIn.style.pointerEvents = 'none';
+    btnOut.style.opacity = '';
+    btnOut.style.pointerEvents = '';
+  } else {
+    // Not clocked in — gray out Clock Out
+    btnOut.style.opacity = '0.35';
+    btnOut.style.pointerEvents = 'none';
+    btnIn.style.opacity = '';
+    btnIn.style.pointerEvents = '';
+  }
+}
+
+function selectWorker(id) {
+  currentWorker = state.staff.find(s => s.id === id);
+  if (!currentWorker) return;
+  document.getElementById('actionName').textContent = currentWorker.name;
+  const today = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+  document.getElementById('actionSub').textContent = today;
+  updateActionButtons();
+  show('actionScreen');
+}
+
+function goHome() { show('homeScreen'); currentWorker = null; }
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ── NAME GRID ────────────────────────────────────────────────────────────────
+function renderNameGrid() {
+  const grid = document.getElementById('nameGrid');
+  if (!state.staff.length) {
+    grid.innerHTML = '<div class="no-staff">No staff added yet.<br>Visit the Admin Panel to get started.</div>';
+    return;
+  }
+  grid.innerHTML = state.staff.map(s => `
+    <button class="name-btn" onclick="selectWorker('${s.id}')">${s.name}</button>
+  `).join('');
+}
+
+// ── ASSIGNMENTS ───────────────────────────────────────────────────────────────
+function getTodayAssignments() {
+  if (!state.todayAssignments[TODAY]) rebuildTodayAssignments();
+  return state.todayAssignments[TODAY];
+}
+
+function rebuildTodayAssignments() {
+  const approved = state.timeOff.filter(r => r.date === TODAY && r.status === 'approved').map(r => r.staffId);
+  const available = state.staff.filter(s => !approved.includes(s.id)).map(s => s.id);
+  const assignments = {};
+  state.tasks.forEach((task, i) => {
+    if (!approved.includes(task.defaultAssignee)) {
+      assignments[task.id] = task.defaultAssignee;
+    } else {
+      assignments[task.id] = available.length ? available[i % available.length] : task.defaultAssignee;
+    }
+  });
+  state.todayAssignments[TODAY] = assignments;
+}
+
+function getMyTasks(staffId) {
+  const a = getTodayAssignments();
+  return state.tasks.filter(t => a[t.id] === staffId).sort((a,b) => a.time.localeCompare(b.time));
+}
+
+// ── WORKER ACTIONS ────────────────────────────────────────────────────────────
+async function clockIn() {
+  if (!currentWorker) return;
+  state.clockLog.push({ staffId: currentWorker.id, name: currentWorker.name, type: 'in', timestamp: new Date().toISOString() });
+  await saveState();
+  updateActionButtons();
+  toast(`✅ Clocked in — ${currentWorker.name}`);
+  setTimeout(viewTasks, 500);
+}
+
+async function clockOut() {
+  if (!currentWorker) return;
+  state.clockLog.push({ staffId: currentWorker.id, name: currentWorker.name, type: 'out', timestamp: new Date().toISOString() });
+  await saveState();
+  updateActionButtons();
+  toast(`👋 Clocked out — ${currentWorker.name}`);
+}
+
+function viewTasks() {
+  if (!currentWorker) return;
+  const tasks = getMyTasks(currentWorker.id);
+  document.getElementById('tasksTitle').textContent = `📋 ${currentWorker.name}'s Tasks Today / Tareas de Hoy`;
+  const list = document.getElementById('tasksList');
+  if (!tasks.length) {
+    list.innerHTML = '<div class="empty-msg">No tasks assigned for today.<br><em>No hay tareas asignadas para hoy.</em></div>';
+  } else {
+    list.innerHTML = tasks.map(t => `
+      <div class="task-item">
+        <div class="task-time">${fmt12(t.time)}</div>
+        <div class="task-name">${t.name}</div>
+      </div>`).join('');
+  }
+  openOverlay('tasksOverlay');
+}
+
+function openTimeOff() {
+  if (!currentWorker) return;
+  document.getElementById('timeOffNote').value = '';
+  document.getElementById('timeOffDate').value = TODAY;
+  openOverlay('timeOffOverlay');
+}
+
+async function submitTimeOff() {
+  if (!currentWorker) return;
+  const date = document.getElementById('timeOffDate').value;
+  const note = document.getElementById('timeOffNote').value.trim();
+  if (!date) { toast('Please select a date.'); return; }
+  const dup = state.timeOff.find(r => r.staffId === currentWorker.id && r.date === date && r.status !== 'denied');
+  if (dup) { toast('A request for that date already exists.'); return; }
+  state.timeOff.push({ id: uid(), staffId: currentWorker.id, name: currentWorker.name, date, note, status: 'pending' });
+  await saveState();
+  closeOverlay('timeOffOverlay');
+  toast('📅 Time off request submitted!');
+}
+
+// ── ADMIN ─────────────────────────────────────────────────────────────────────
+function openAdminLogin() { openOverlay('adminLoginOverlay'); }
+
+function adminLogin() {
+  const pw = document.getElementById('adminPwInput').value;
+  if (pw === state.adminPassword) {
+    closeOverlay('adminLoginOverlay');
+    document.getElementById('adminPwInput').value = '';
+    show('adminScreen');
+    renderAdmin();
+  } else {
+    toast('❌ Incorrect password.');
+  }
+}
+
+function adminLogout() { show('homeScreen'); }
+
+function showTab(id, el) {
+  document.querySelectorAll('.admin-body > div').forEach(d => d.style.display = 'none');
+  document.getElementById(id).style.display = 'block';
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function renderAdmin() {
+  renderStaff();
+  renderAdminTasks();
+  renderTimeOff();
+  renderLog();
+  const sel = document.getElementById('newTaskAssignee');
+  sel.innerHTML = '<option value="">Unassigned</option>' + state.staff.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+}
+
+// STAFF
+function renderStaff() {
+  const el = document.getElementById('staffList');
+  if (!state.staff.length) { el.innerHTML = '<div class="empty-msg">No staff yet.</div>'; return; }
+  el.innerHTML = state.staff.map(s => `
+    <div class="card">
+      <div class="card-row">
+        <div class="card-name">${s.name}</div>
+        <button class="btn-sm btn-danger" onclick="removeStaff('${s.id}')">Remove</button>
+      </div>
+    </div>`).join('');
+}
+
+async function addStaff() {
+  const name = document.getElementById('newStaffName').value.trim();
+  if (!name) { toast('Enter a name.'); return; }
+  if (state.staff.find(s => s.name.toLowerCase() === name.toLowerCase())) { toast('Already exists.'); return; }
+  state.staff.push({ id: uid(), name });
+  document.getElementById('newStaffName').value = '';
+  await saveState();
+  renderAdmin();
+  renderNameGrid();
+  toast(`✅ ${name} added.`);
+}
+
+async function removeStaff(id) {
+  state.staff = state.staff.filter(s => s.id !== id);
+  state.tasks = state.tasks.map(t => t.defaultAssignee === id ? { ...t, defaultAssignee: '' } : t);
+  delete state.todayAssignments[TODAY];
+  await saveState();
+  renderAdmin();
+  renderNameGrid();
+  toast('Staff member removed.');
+}
+
+// TASKS
+function renderAdminTasks() {
+  const el = document.getElementById('adminTasksList');
+  if (!state.tasks.length) { el.innerHTML = '<div class="empty-msg">No tasks yet.</div>'; return; }
+  const asgn = getTodayAssignments();
+  el.innerHTML = [...state.tasks].sort((a,b) => a.time.localeCompare(b.time)).map(t => {
+    const def = state.staff.find(s => s.id === t.defaultAssignee);
+    const tod = state.staff.find(s => s.id === asgn[t.id]);
+    const reassigned = asgn[t.id] && asgn[t.id] !== t.defaultAssignee;
+    return `
+    <div class="card">
+      <div class="card-row">
+        <div>
+          <div class="card-name">${t.name}</div>
+          <div class="card-sub">${fmt12(t.time)} · ${def ? def.name : 'Unassigned'}
+            ${reassigned && tod ? `<span style="color:#f59e0b;font-weight:700"> → Today: ${tod.name}</span>` : ''}
+          </div>
+        </div>
+        <button class="btn-sm btn-danger" onclick="removeTask('${t.id}')">Remove</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function addTask() {
+  const name = document.getElementById('newTaskName').value.trim();
+  const time = document.getElementById('newTaskTime').value;
+  const assignee = document.getElementById('newTaskAssignee').value;
+  if (!name || !time) { toast('Enter task name and time.'); return; }
+  state.tasks.push({ id: uid(), name, time, defaultAssignee: assignee });
+  delete state.todayAssignments[TODAY];
+  document.getElementById('newTaskName').value = '';
+  document.getElementById('newTaskTime').value = '';
+  document.getElementById('newTaskAssignee').value = '';
+  await saveState();
+  renderAdminTasks();
+  toast('✅ Task added.');
+}
+
+async function removeTask(id) {
+  state.tasks = state.tasks.filter(t => t.id !== id);
+  delete state.todayAssignments[TODAY];
+  await saveState();
+  renderAdminTasks();
+  toast('Task removed.');
+}
+
+// TIME OFF
+function renderTimeOff() {
+  const el = document.getElementById('timeOffList');
+  const sorted = [...state.timeOff].sort((a,b) => b.date.localeCompare(a.date));
+  if (!sorted.length) { el.innerHTML = '<div class="empty-msg">No requests yet.</div>'; return; }
+  el.innerHTML = sorted.map(r => `
+    <div class="card">
+      <div class="card-row">
+        <div>
+          <div class="card-name">${r.name}</div>
+          <div class="card-sub">${r.date}${r.note ? ' · ' + r.note : ''}</div>
+          <span class="status-badge badge-${r.status}">${r.status}</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+          ${r.status === 'pending'
+            ? `<button class="btn-sm btn-success" onclick="resolveTimeOff('${r.id}','approved')">Approve</button>
+               <button class="btn-sm btn-danger" onclick="resolveTimeOff('${r.id}','denied')">Deny</button>`
+            : `<button class="btn-sm btn-neutral" onclick="resolveTimeOff('${r.id}','pending')">Reset</button>`}
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+async function resolveTimeOff(id, status) {
+  const req = state.timeOff.find(r => r.id === id);
+  if (!req) return;
+  req.status = status;
+  if (req.date === TODAY) delete state.todayAssignments[TODAY];
+  await saveState();
+  renderTimeOff();
+  renderAdminTasks();
+  if (status === 'approved') toast('✅ Approved — tasks redistributed for today.');
+  else if (status === 'denied') toast('❌ Request denied.');
+  else toast('Reset to pending.');
+}
+
+// LOG
+function renderLog() {
+  const el = document.getElementById('clockLog');
+  if (!state.clockLog.length) { el.innerHTML = '<div class="empty-msg">No clock-ins yet.</div>'; return; }
+  const sorted = [...state.clockLog].sort((a,b) => b.timestamp.localeCompare(a.timestamp));
+  el.innerHTML = sorted.slice(0, 60).map(l => {
+    const d = new Date(l.timestamp);
+    return `<div class="log-item">
+      <span>${l.type === 'in' ? '⏱' : '🚪'}</span>
+      <span><strong>${l.name}</strong> — ${l.type.toUpperCase()}</span>
+      <span style="margin-left:auto;color:#888;font-size:12px;">${d.toLocaleDateString()} ${d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
+    </div>`;
+  }).join('');
+}
+
+// SETTINGS
+async function changePassword() {
+  const cur = document.getElementById('curPw').value;
+  const nw = document.getElementById('newPw').value;
+  const conf = document.getElementById('confirmPw').value;
+  if (cur !== state.adminPassword) { toast('Current password is incorrect.'); return; }
+  if (!nw || nw.length < 4) { toast('New password must be at least 4 characters.'); return; }
+  if (nw !== conf) { toast('Passwords do not match.'); return; }
+  state.adminPassword = nw;
+  await saveState();
+  document.getElementById('curPw').value = '';
+  document.getElementById('newPw').value = '';
+  document.getElementById('confirmPw').value = '';
+  toast('✅ Password updated.');
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function uid() { return Math.random().toString(36).slice(2,10); }
+
+function fmt12(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${h >= 12 ? 'PM' : 'AM'}`;
+}
+
+function openOverlay(id) { document.getElementById(id).classList.add('active'); }
+function closeOverlay(id) { document.getElementById(id).classList.remove('active'); }
+function closeOnBg(e, id) { if (e.target === document.getElementById(id)) closeOverlay(id); }
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+</script>
+</body>
+</html>

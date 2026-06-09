@@ -290,12 +290,12 @@ let state = {
 
 // ── STORAGE ──────────────────────────────────────────────────────────────────
 async function saveState() {
-  try { await window.storage.set('maint_v2', JSON.stringify(state)); } catch(e) {}
+  try { localStorage.setItem('maint_v2', JSON.stringify(state)); } catch(e) {}
 }
 async function loadState() {
   try {
-    const r = await window.storage.get('maint_v2');
-    if (r) state = { ...state, ...JSON.parse(r.value) };
+    const r = localStorage.getItem('maint_v2');
+    if (r) state = { ...state, ...JSON.parse(r) };
   } catch(e) {}
 }
 
